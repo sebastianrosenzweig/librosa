@@ -488,7 +488,7 @@ def __beat_tracker(
 
     # convert bpm to frames per beat (rounded)
     # [frames / sec] * [60 sec / min] / [beat / min] = [frames / beat]
-    frames_per_beat = np.round(frame_rate * 60.0 / bpm)
+    frames_per_beat = np.round(frame_rate * 60.0 / bpm).astype(int)
 
     # localscore is a smoothed version of AGC'd onset envelope
     localscore = __beat_local_score(__normalize_onsets(onset_envelope), frames_per_beat)
@@ -557,8 +557,8 @@ def __beat_local_score(onset_envelope, frames_per_beat, localscore):
 
 @numba.guvectorize(
         [
-            "void(float32[:], float32[:], float32, int32[:], float32[:])",
-            "void(float64[:], float64[:], float32, int32[:], float64[:])",
+            "void(float32[:], int32[:], float32, int32[:], float32[:])",
+            "void(float64[:], int64[:], float32, int32[:], float64[:])",
         ],
         "(t),(n),()->(t),(t)",
         nopython=True, cache=True)
@@ -582,7 +582,7 @@ def __beat_track_dp(localscore, frames_per_beat, tightness, backlink, cumscore):
         # Search over all possible predecessors to find the best preceding beat
         # NOTE: to provide time-varying tempo estimates, we replace
         # frames_per_beat[0] by frames_per_beat[i] in this loop body.
-        for loc in range(i - np.round(frames_per_beat[tv * i] / 2), i - 2 * frames_per_beat[tv * i] - 1, - 1):
+        for loc in range(i - int(np.round(frames_per_beat[tv * i] / 2)), i - 2 * frames_per_beat[tv * i] - 1, - 1):
             # Once we're searching past the start, break out
             if loc < 0:
                 break
